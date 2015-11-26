@@ -37,9 +37,17 @@ class PySpeedTinApi(object):
         self,
         name,
         ):
+        '''
+        Creates a benchmark with the given name.
+        
+        :param str name:
+            The name of the benchmark to be created.
+        '''
         r = requests.post('%s/dashboard/api/projects/%s/benchmarks' % (self.base_url,self.project_id), data={
             'name': name})
-
+        if r.status_code != 201:
+            raise AssertionError('It was not possible to create the measurement. Msg: %s' % (r.text,))
+        return r.json()
         
     def create_measurement(
         self,
@@ -124,6 +132,7 @@ class PySpeedTinApi(object):
         )
         if r.status_code != 201:
             raise AssertionError('It was not possible to create the measurement. Msg: %s' % (r.text,))
+        return r.json()
     
     def run_and_get_output(self, *popenargs, **kwargs):
         '''
@@ -165,7 +174,7 @@ class PySpeedTinApi(object):
             
         commit_id = self.run_and_get_output('git rev-parse HEAD'.split()).strip().decode('utf-8')
         commit_date = self.run_and_get_output(['git', 'show', '-s', '--format=%ct', commit_id]).strip().decode('utf-8')
-        commit_date = datetime.datetime.fromtimestamp(int(commit_date))
+        commit_date = datetime.datetime.utcfromtimestamp(int(commit_date))
         return commit_id, commit_date
             
             
