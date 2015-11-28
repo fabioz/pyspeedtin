@@ -14,32 +14,32 @@ class _Result(object):
     
 class PostMock():
     
-    def __call__(self, url, json, headers):
-        if url == 'https://www.speedtin.com/api/projects/1/benchmarks' and json == {'name': 'create_10_users'}:
+    def __call__(self, url, json, headers, **kwargs):
+        if url == 'https://www.speedtin.com/api/projects/6546546/benchmarks' and json == {'name': 'create_10_users'}:
             return _Result(201, json_dumps({'id': 0, 'name': 'create_10_users'}))
         
-        if url == 'https://www.speedtin.com/api/projects/1/benchmarks' and json == {'name': 'select_100_users'}:
+        if url == 'https://www.speedtin.com/api/projects/6546546/benchmarks' and json == {'name': 'select_100_users'}:
             return _Result(201, json_dumps({'id': 1, 'name': 'select_100_users'}))
         
-        if url == 'https://www.speedtin.com/api/projects/1/benchmarks/0/measurements':
+        if url == 'https://www.speedtin.com/api/projects/6546546/benchmarks/0/measurements':
             return _Result(201, json_dumps({'id': 0}))
         
-        if url == 'https://www.speedtin.com/api/projects/1/benchmarks/1/measurements':
+        if url == 'https://www.speedtin.com/api/projects/6546546/benchmarks/1/measurements':
             return _Result(201, json_dumps({'id': 0}))
         
         raise AssertionError('Unexpected url: %s and json: %s' % (url, json))
         
 class GetMock():
     
-    def __call__(self, url, headers):
-        if url == 'https://www.speedtin.com/api/projects/1/benchmarks':
+    def __call__(self, url, headers, **kwargs):
+        if url == 'https://www.speedtin.com/api/projects/6546546/benchmarks':
             return _Result(200, json.dumps([{'id': 0, 'name': 'create_10_users'}, {'id': 1, 'name': 'select_100_users'}]))
         
         raise AssertionError('Unexpected url: %s' % (url,))
 
 @pytest.fixture
 def api():
-    api = PySpeedTinApi('dummy_auth_key', 1)
+    api = PySpeedTinApi('dummy_auth_key', 6546546)
     
     api.post = PostMock()
     api.get = GetMock()
