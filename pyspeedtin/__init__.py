@@ -52,7 +52,7 @@ class PySpeedTinApi(object):
     need to query the server to get the benchmark id from the benchmark name.
     '''
 
-    def __init__(self, authorization_key, project_id, clear_previous=False):
+    def __init__(self, authorization_key=None, project_id=None, clear_previous=False):
         '''
         :param str project_id:
             This is the id of the project (available in the Dashboard/Projects, next to the project
@@ -62,11 +62,28 @@ class PySpeedTinApi(object):
             The key which is used to authorize with the backend (available in the Dashboard/User
             Settings).
         '''
+        if authorization_key is None:
+            try:
+                authorization_key = os.environ['SPEEDTIN_AUTHORIZATION_KEY']
+            except KeyError:
+                raise AssertionError(
+                    'The authorization key to commit the data was not passed nor is available in the SPEEDTIN_AUTHORIZATION_KEY environment variable.')
+            
+        if project_id is None:
+            try:
+                project_id = os.environ['SPEEDTIN_PROJECT_ID']
+            except KeyError:
+                raise AssertionError(
+                    'The project_id to commit the data was not passed nor is available in the SPEEDTIN_PROJECT_ID environment variable.')
+            
         self.authorization_key = authorization_key
         self.project_id = project_id
+        
+
 
         self.base_url = 'https://www.speedtin.com'
         self.post = requests.post
+        self.get = requests.get
         self._local_cache = LocalCache(os.path.join(self._data_dir(), str(project_id)))
         
         if clear_previous:
@@ -101,21 +118,25 @@ class PySpeedTinApi(object):
         return os.path.join(os.path.expanduser('~'), '.speedtin')
 
     def commit(self):
+        sys.stdout.write('Commit results...\n')
+        assert not self.base_url.endswith('/'), 'The base url must not end with a slash.'
         self._commit_benchmarks()
         self._commit_measurements()
 
     def _commit_benchmarks(self):
+        project_id = self.project_id
+        authorization_key = self.authorization_key
         with self._local_cache.load('benchmark') as benchmark_data:
             for handle in benchmark_data:
                 if not handle.has_rest_data():
                     data = handle.data
-                    r = self.post('%s/dashboard/api/projects/%s/benchmarks' %
-                                  (self.base_url, self.project_id), json=data)
-                    if r.status_code != 201:
-                        raise AssertionError(
-                            'It was not possible to create the measurement. Msg: %s' % (r.text,))
-                    json = r.json()
-                    handle.set_rest_data(json)
+                    r = self.post(
+                        '%s/api/projects/%s/benchmarks' % (self.base_url, project_id), 
+                        json=data, 
+                        headers={'X-AuthToken': authorization_key})
+                    as_json = self.check_request_result(r, 'It was not possible to create the benchmark')
+                    handle.set_rest_data(as_json)
+                    sys.stdout.write('Saved benchark: %s\n' % (as_json,))
 
     def _commit_measurements(self):
         project_id = self.project_id
@@ -143,16 +164,11 @@ class PySpeedTinApi(object):
                         benchmarks_request = self.get('%s/api/projects/%s/benchmarks' % (
                             self.base_url,
                             project_id), headers={'X-AuthToken': authorization_key})
-                        if benchmarks_request.status_code != 200:
-                            raise RuntimeError(
-                                'Error: unable to get the benchmarks from the server\n%s' % (
-                                    benchmarks_request.text))
-
-                        as_json = benchmarks_request.json()
-                        if 'error' in as_json:
-                            raise RuntimeError(
-                                'Error: unable to get the benchmarks from the server. %s' % (
-                                    as_json,))
+                        as_json = self.check_request_result(
+                            benchmarks_request, 
+                            'Unable to get the benchmarks from the server', 
+                            expected_status=200, 
+                        )
 
                         for benchmark in as_json:
                             if benchmark['name'] not in benchmark_name_to_id:
@@ -171,10 +187,19 @@ class PySpeedTinApi(object):
                     json=json,
                     headers={'X-AuthToken': authorization_key}
                 )
-                if r.status_code != 201:
-                    raise AssertionError(
-                        'It was not possible to create the measurement. Msg: %s' % (r.text,))
+                as_json = self.check_request_result(r, 'It was not possible to create the measurement.')
+                sys.stdout.write('Saved measurement: %s\n' % (as_json,))
                 handle.remove()
+                
+    def check_request_result(self, r, msg, expected_status=201):
+        if r.status_code != expected_status:
+            raise RuntimeError('%s. Msg: %s' % (msg, r.text,))
+        
+        as_json = r.json()
+        
+        if 'error' in as_json:
+            raise RuntimeError('%s. Msg: %s' % (msg, r.text,))
+        return as_json
 
     def add_benchmark(
         self,
@@ -227,7 +252,7 @@ class PySpeedTinApi(object):
         :param str os:
             The os in which the benchmark was run (Windows, Linux, MacOs) 
 
-        :param commitid:
+        :param commit_id:
             A hash for the commit for which this measurement was created.
 
         :param str commit_date:
@@ -249,7 +274,7 @@ class PySpeedTinApi(object):
             'released': released,
             'branch': branch,
             'os': os,
-            'commitid': commit_id,
+            'commit_id': commit_id,
             'commit_date': commit_date,
             'machine_name': machine_name,
             'tag1': tag1,
