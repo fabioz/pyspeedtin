@@ -221,6 +221,8 @@ class PySpeedTinApi(object):
         :param str name:
             The name of the benchmark to be created.
         '''
+        if len(name) > 50:
+            raise ValueError('The maximum benchmark name size is 50 chars. The one passed has: %s chars' % (len(name),))
         self._local_cache.add('benchmark', {'name': name})
 
     def add_measurement(
@@ -302,21 +304,16 @@ class PySpeedTinApi(object):
         '''
         Run command with arguments and return its output.
         '''
-        timeout = None
-        with subprocess.Popen(*popenargs, stdout=subprocess.PIPE, **kwargs) as process:
-            try:
-                output, unused_err = process.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                output, unused_err = process.communicate()
-                raise subprocess.TimeoutExpired(process.args, timeout, output=output)
-            except:
-                process.kill()
-                process.wait()
-                raise
-            retcode = process.poll()
-            if retcode:
-                raise subprocess.CalledProcessError(retcode, process.args, output=output)
+        process = subprocess.Popen(*popenargs, stdout=subprocess.PIPE, **kwargs)
+        try:
+            output, unused_err = process.communicate()
+        except:
+            process.kill()
+            process.wait()
+            raise
+        retcode = process.poll()
+        if retcode:
+            raise Exception('Process exited with value: %s. Args: %s. Output: %s' % (retcode, process.args, output))
         return output
 
     def git_commit_id_branch_and_date_from_path(self, repo_path):
