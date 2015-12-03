@@ -10,22 +10,22 @@ api.add_benchmark('select_100_users')
 
 commit_id, branch, commit_date = api.git_commit_id_branch_and_date_from_path(__file__)
 api.add_measurement(
-    benchmark_id='create_10_users', 
-    value=1.8, 
-    version='2.2', 
-    released=True, 
-    branch=branch, 
-    commit_id=commit_id, 
-    commit_date=commit_date, 
+    benchmark_id='create_10_users',
+    value=1.8,
+    version='2.2',
+    released=True,
+    branch=branch,
+    commit_id=commit_id,
+    commit_date=commit_date,
 )
 api.add_measurement(
-    benchmark_id='select_100_users', 
-    value=1.9, 
-    version='2.2', 
-    released=True, 
-    branch=branch, 
-    commit_id=commit_id, 
-    commit_date=commit_date, 
+    benchmark_id='select_100_users',
+    value=1.9,
+    version='2.2',
+    released=True,
+    branch=branch,
+    commit_id=commit_id,
+    commit_date=commit_date,
 )
 
 api.commit()
@@ -70,24 +70,24 @@ class PySpeedTinApi(object):
             except KeyError:
                 raise AssertionError(
                     'The authorization key to commit the data was not passed nor is available in the SPEEDTIN_AUTHORIZATION_KEY environment variable.')
-            
+
         if project_id is None:
             try:
                 project_id = os.environ['SPEEDTIN_PROJECT_ID']
             except KeyError:
                 raise AssertionError(
                     'The project_id to commit the data was not passed nor is available in the SPEEDTIN_PROJECT_ID environment variable.')
-            
+
         self.authorization_key = authorization_key
         self.project_id = project_id
-        
+
 
 
         self.base_url = 'https://www.speedtin.com'
         self.post = requests.post
         self.get = requests.get
         self._local_cache = LocalCache(os.path.join(self._data_dir(), str(project_id)))
-        
+
         if clear_previous:
             self._local_cache.clear('measurement')
         else:
@@ -96,7 +96,7 @@ class PySpeedTinApi(object):
             with self._local_cache.load('measurement') as measurement_data:
                 for handle in measurement_data:
                     found.append(handle.data)
-            
+
             if found:
                 sys.stderr.write('Warning: PySpeedTinApi:\nIn a previous call the following measurements where not properly saved:\n')
                 for data in found:
@@ -106,7 +106,7 @@ class PySpeedTinApi(object):
                 sys.stderr.write(
                     'To prevent this from happening, pass "clear_previous=True" in the \n'
                     'PySpeedTinApi constructor or manually erase the contents at:\n%s\n\n' % (self._data_dir()))
-        
+
     def date_to_str(self, date):
         return date.strftime('%Y-%m-%d %H:%M:%S.%f')
 
@@ -133,8 +133,8 @@ class PySpeedTinApi(object):
                 if not handle.has_rest_data():
                     data = handle.data
                     as_json = self.post_and_check_resut(
-                        '%s/api/projects/%s/benchmarks' % (self.base_url, project_id), 
-                        json=data, 
+                        '%s/api/projects/%s/benchmarks' % (self.base_url, project_id),
+                        json=data,
                         headers={'X-AuthToken': authorization_key},
                         msg='It was not possible to create the benchmark',
                         expected_status=201,
@@ -169,9 +169,9 @@ class PySpeedTinApi(object):
                             self.base_url,
                             project_id), headers={'X-AuthToken': authorization_key})
                         as_json = self.check_request_result(
-                            benchmarks_request, 
-                            'Unable to get the benchmarks from the server', 
-                            expected_status=200, 
+                            benchmarks_request,
+                            'Unable to get the benchmarks from the server',
+                            expected_status=200,
                         )
 
                         for benchmark in as_json:
@@ -195,18 +195,18 @@ class PySpeedTinApi(object):
                 )
                 sys.stdout.write('Saved measurement: %s\n' % (as_json,))
                 handle.remove()
-                
+
     def post_and_check_resut(self, url, json, headers, msg, expected_status):
         r = self.post(url, json=json, headers=headers, allow_redirects=False)
         as_json = self.check_request_result(r, msg+' Url: %s, Json: %s' % (url, json), expected_status)
         return as_json
-        
+
     def check_request_result(self, r, msg, expected_status=201):
         if r.status_code != expected_status:
             raise RuntimeError('%s. Expected status: %s != %s Msg: %s' % (msg, expected_status, r.status_code, r.text,))
-        
+
         as_json = r.json()
-        
+
         if 'error' in as_json:
             raise RuntimeError('%s. Msg: %s' % (msg, r.text,))
         return as_json
@@ -245,7 +245,7 @@ class PySpeedTinApi(object):
             This is the id of the benchmark.
 
         :param float value:
-            The value of the measurement. The actual meaning depends on the unit which is set in the 
+            The value of the measurement. The actual meaning depends on the unit which is set in the
             Benchmark (i.e.: it could be seconds, count, etc.)
 
         :param str version:
@@ -262,7 +262,7 @@ class PySpeedTinApi(object):
             i.e.: master, development, ...
 
         :param str os:
-            The os in which the benchmark was run (Windows, Linux, MacOs) 
+            The os in which the benchmark was run (Windows, Linux, MacOs)
 
         :param commit_id:
             A hash for the commit for which this measurement was created.
@@ -280,6 +280,12 @@ class PySpeedTinApi(object):
         :param tag2:
             Any value you feel it's important to tag this measurement.
         '''
+        if not machine_name:
+            import socket
+            machine_name = socket.gethostname()
+
+        if not machine_name:
+            raise RuntimeError('Please specify machine name.')
         json = {
             'value': value,
             'version': version,
